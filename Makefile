@@ -1,0 +1,76 @@
+SHELL:=/usr/bin/env bash
+
+RUN=docker compose run --rm --remove-orphans
+RUN_DEVTOOLS=$(RUN) devtools
+RUN_PYTHON=$(RUN_DEVTOOLS) uv run
+
+.PHONY: all
+all: help
+
+.PHONY: pre-commit
+pre-commit:  ## Run pre-commit with args
+	$(RUN_PYTHON) pre-commit $(args)
+
+.PHONY: uv
+uv:  ## Run uv with args
+	$(RUN_DEVTOOLS) uv $(args)
+
+.PHONY: lint
+lint:  ## Run flake8, mypy, other linters and verify formatting
+	@make pre-commit args="run --all-files"; \
+	RESULT1=$$?; \
+	make mypy; \
+	RESULT2=$$?; \
+	exit $$((RESULT1 + RESULT2))
+
+.PHONY: mypy
+mypy:  ## Run mypy
+	$(RUN_PYTHON) mypy $(args)
+
+.PHONY: test
+test:  ## Run tests
+	$(RUN_PYTHON) pytest --cov=tests --cov=argparse_boost $(args)
+	$(RUN_PYTHON) pytest --dead-fixtures
+
+.PHONY: package
+package:  ## Run packages (dependencies) checks
+	$(RUN_DEVTOOLS) uv pip check
+
+.PHONY: build-package
+build-package:  ## Build package
+	$(RUN_DEVTOOLS) uv build $(args)
+	$(RUN_DEVTOOLS) uv export --format=requirements-txt --output-file=dist/requirements.txt --locked --no-dev --no-emit-project
+
+.PHONY: build-production-image
+build-production-image:  ## Build production image
+	build-package
+	docker build -t argparse-boost:prod .
+
+.PHONY: checks
+checks: lint package test  ## Run linting and tests
+
+.PHONY: run-ci
+run-ci:  ## Run CI locally
+	$(RUN_DEVTOOLS) ./ci.sh
+
+.PHONY: clean
+clean:  ## Clean up
+	rm -rf dist
+	rm -rf htmlcov
+	rm -f .coverage coverage.xml
+	find . -type d -name "__pycache__" -exec rm -rf {} +
+
+.PHONY: clean-all
+clean-all:  ## Clean up all
+	@make clean
+	rm -rf .cache
+	rm -rf .mypy_cache
+	rm -rf .pytest_cache
+
+.PHONY: bash
+bash:  ## Run bash
+	$(RUN) -it devtools bash $(args)
+
+.PHONY: help
+help:
+	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-30s\033[0m %s\n", $$1, $$2}'
