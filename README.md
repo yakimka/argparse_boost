@@ -25,12 +25,12 @@ Build multi-command CLIs (like `git`, `docker`, `kubectl`) with automatic comman
 
 ```
 myapp/
-├── __main__.py
-└── commands/
+└── cli/
+    ├── __main__.py
     └── greet.py
 ```
 
-**myapp/__main__.py:**
+**myapp/cli/__main__.py:**
 
 ```python
 import os
@@ -43,7 +43,7 @@ def main() -> None:
         description="My CLI application",
         env_prefix="MYAPP_",
         package_path=os.path.dirname(__file__),
-        prefix="myapp.",
+        prefix="myapp.cli.",
     )
 
 
@@ -51,7 +51,7 @@ if __name__ == "__main__":
     main()
 ```
 
-**myapp/commands/greet.py:**
+**myapp/cli/greet.py:**
 
 ```python
 from dataclasses import dataclass
@@ -71,22 +71,22 @@ def main(args: GreetConfig) -> None:
 **Usage:**
 
 ```bash
-python -m myapp greet --name World --greeting Hi
+python -m myapp.cli greet --name World --greeting Hi
 # Output: Hi, World!
 
-python -m myapp greet --name Alice
+python -m myapp.cli greet --name Alice
 # Output: Hello, Alice!
 
-python -m myapp --help
+python -m myapp.cli --help
 # Shows available commands
 
-python -m myapp greet --help
+python -m myapp.cli greet --help
 # Shows arguments for greet command
 ```
 
 The library automatically:
 
-- Discovers commands in the `commands/` directory
+- Discovers commands in the `cli/` directory
 - Parses arguments from the dataclass type hint in `main()`
 - Generates help text from dataclass fields
 - Supports environment variables with the specified prefix
@@ -97,6 +97,7 @@ The easiest way to write a command is to use a dataclass type hint in the `main(
 Arguments are automatically parsed from the dataclass fields:
 
 ```python
+# myapp/cli/deploy.py
 from dataclasses import dataclass, field
 from typing import Annotated
 from argparse_boost import Help
@@ -126,9 +127,9 @@ def main(args: DeployConfig) -> None:
 **Usage:**
 
 ```bash
-python -m myapp deploy --environment prod --version 1.2.3
-python -m myapp deploy --environment staging --version 1.2.4 --dry-run true
-python -m myapp deploy --environment dev --version 1.2.5 --services "api,worker"
+python -m myapp.cli deploy --environment prod --version 1.2.3
+python -m myapp.cli deploy --environment staging --version 1.2.4 --dry-run true
+python -m myapp.cli deploy --environment dev --version 1.2.5 --services "api,worker"
 ```
 
 This approach gives you:
@@ -183,9 +184,12 @@ This approach is useful when you need:
 Commands can also be async - the library automatically handles them with `asyncio.run()`:
 
 ```python
-async def main(args: argparse.Namespace) -> None:
+import asyncio
+
+
+async def main() -> None:
     """Async command example."""
-    await some_async_operation()
+    await asyncio.sleep(1)
 ```
 
 ### Configuration Management (Without CLI)
@@ -268,142 +272,112 @@ This approach gives you:
 - **[Custom Help Text](#custom-help-text)** - Enhanced help formatting with defaults and ENV var
   display
 
-### Single-Command CLI with BoostedArgumentParser
-
-For simple single-command CLIs, you can use `BoostedArgumentParser` directly without the
-multi-command framework:
-
-```python
-from dataclasses import dataclass
-from argparse_boost import BoostedArgumentParser, from_dict, dict_from_args
-
-
-@dataclass(kw_only=True)
-class Config:
-    host: str
-    port: int = 5432
-    debug: bool = False
-
-
-parser = BoostedArgumentParser(prog="myapp", env_prefix="APP_")
-parser.parse_arguments_from_dataclass(Config)
-args = parser.parse_args()
-config = from_dict(dict_from_args(args, Config), Config)
-print(config)
-```
-
-**Run it:**
-
-```bash
-# Using CLI arguments
-python myapp.py --host localhost --port 8080 --debug true
-
-# Using environment variables
-APP_HOST=localhost APP_DEBUG=true python myapp.py
-
-# Mix both (CLI takes priority)
-APP_PORT=3000 python myapp.py --host localhost --debug true
-```
-
-This automatically creates:
-
-- `--host` (required, string)
-- `--port` (optional, int, default: 5432)
-- `--debug` (optional, bool, default: False)
 
 ### Environment Variable Support
 
-When using `BoostedArgumentParser`, environment variables are automatically read before parsing CLI
-arguments. CLI arguments always take priority over environment variables.
+Commands automatically read environment variables before parsing CLI arguments. CLI arguments always
+take priority over environment variables. The `env_prefix` specified in `setup_main()` is used for
+all commands.
 
 Environment variable naming:
 
-- CLI option `--host` → ENV var `APP_HOST` (with prefix)
-- CLI option `--port` → ENV var `APP_PORT`
-- Multi-word options: `--log-level` → `APP_LOG_LEVEL` (dashes become underscores)
+- CLI option `--host` → ENV var `MYAPP_HOST` (with prefix from setup_main)
+- CLI option `--port` → ENV var `MYAPP_PORT`
+- Multi-word options: `--log-level` → `MYAPP_LOG_LEVEL` (dashes become underscores)
 
 **Example:**
 
 ```python
+# myapp/cli/connect.py
 from dataclasses import dataclass
-from argparse_boost import BoostedArgumentParser, from_dict, dict_from_args
 
 
 @dataclass(kw_only=True)
-class Config:
+class ConnectConfig:
     host: str
+    port: int = 5432
     log_level: str = "INFO"
 
 
-parser = BoostedArgumentParser(prog="myapp", env_prefix="APP_")
-parser.parse_arguments_from_dataclass(Config)
-args = parser.parse_args()
-config = from_dict(dict_from_args(args, Config), Config)
+def main(args: ConnectConfig) -> None:
+    """Connect to a server with logging."""
+    print(f"Connecting to {args.host}:{args.port}")
+    print(f"Log level: {args.log_level}")
 ```
 
 **Usage:**
 
 ```bash
 # Using environment variables only
-APP_HOST=localhost APP_LOG_LEVEL=DEBUG python myapp.py
+MYAPP_HOST=localhost MYAPP_LOG_LEVEL=DEBUG python -m myapp.cli connect
 
 # CLI overrides ENV
-APP_HOST=localhost python myapp.py --host production.example.com
-# Result: config.host = 'production.example.com'
+MYAPP_HOST=localhost python -m myapp.cli connect --host production.example.com --port 443
+# Result: host='production.example.com', port=443
+
+# Mix both
+MYAPP_LOG_LEVEL=DEBUG python -m myapp.cli connect --host db.example.com
+# Result: host='db.example.com', log_level='DEBUG'
 ```
 
 Environment variables are displayed in the help output when they are currently set:
 
 ```bash
-APP_HOST=localhost python myapp.py --help
-# Shows: --host (env: APP_HOST=localhost)
+MYAPP_HOST=localhost python -m myapp.cli connect --help
+# Shows: --host (env: MYAPP_HOST=localhost)
+```
 
 ### Nested Dataclasses
 
 Nested dataclasses are automatically flattened into CLI arguments with intuitive naming:
 
 ```python
+# myapp/cli/migrate.py
 from dataclasses import dataclass, field
-from argparse_boost import BoostedArgumentParser, from_dict, dict_from_args
 
 
 @dataclass(kw_only=True)
-class Database:
+class DatabaseConfig:
     host: str
     port: int = 5432
     use_ssl: bool = False
 
 
 @dataclass(kw_only=True)
-class Config:
-    name: str
-    db: Database = field(default_factory=lambda: Database(host="localhost"))
+class MigrateConfig:
+    migration_name: str
+    db: DatabaseConfig = field(default_factory=lambda: DatabaseConfig(host="localhost"))
 
 
-parser = BoostedArgumentParser(prog="myapp", env_prefix="APP_")
-parser.parse_arguments_from_dataclass(Config)
-args = parser.parse_args()
-config = from_dict(dict_from_args(args, Config), Config)
+def main(args: MigrateConfig) -> None:
+    """Run database migrations."""
+    ssl_status = "with SSL" if args.db.use_ssl else "without SSL"
+    print(f"Running migration '{args.migration_name}'")
+    print(f"Connecting to {args.db.host}:{args.db.port} {ssl_status}")
 ```
 
 Generated CLI arguments:
 
-- `--name` → `config.name`
-- `--db-host` → `config.db.host`
-- `--db-port` → `config.db.port`
-- `--db-use-ssl` → `config.db.use_ssl`
+- `--migration-name` → `args.migration_name`
+- `--db-host` → `args.db.host`
+- `--db-port` → `args.db.port`
+- `--db-use-ssl` → `args.db.use_ssl`
 
-Environment variables:
+Environment variables (with MYAPP prefix from setup_main):
 
-- `APP_NAME`
-- `APP_DB_HOST`
-- `APP_DB_PORT`
-- `APP_DB_USE_SSL`
+- `MYAPP_MIGRATION_NAME`
+- `MYAPP_DB_HOST`
+- `MYAPP_DB_PORT`
+- `MYAPP_DB_USE_SSL`
 
-Example usage:
+**Usage:**
 
 ```bash
-python myapp.py --name myapp --db-host postgres.local --db-port 5433 --db-use-ssl true
+# Using CLI arguments
+python -m myapp.cli migrate --migration-name add_users --db-host postgres.local --db-port 5433
+
+# Using environment variables
+MYAPP_DB_HOST=postgres.local MYAPP_DB_USE_SSL=true python -m myapp.cli migrate --migration-name add_users
 ```
 
 ### Custom Parsers
@@ -411,9 +385,10 @@ python myapp.py --name myapp --db-host postgres.local --db-port 5433 --db-use-ss
 Use custom parsing functions for specialized types via `Annotated`:
 
 ```python
+# myapp/cli/analyze.py
 from dataclasses import dataclass
 from typing import Annotated
-from argparse_boost import BoostedArgumentParser, Parser, from_dict, dict_from_args
+from argparse_boost import Parser
 
 
 def parse_percentage(value: str) -> float:
@@ -424,16 +399,27 @@ def parse_percentage(value: str) -> float:
 
 
 @dataclass(kw_only=True)
-class Config:
+class AnalyzeConfig:
+    dataset: str
     threshold: Annotated[float, Parser(parse_percentage)] = 0.5
+    min_confidence: Annotated[float, Parser(parse_percentage)] = 0.8
 
 
-parser = BoostedArgumentParser(prog="myapp")
-parser.parse_arguments_from_dataclass(Config)
-args = parser.parse_args(["--threshold", "75%"])
-config = from_dict(dict_from_args(args, Config), Config)
+def main(args: AnalyzeConfig) -> None:
+    """Analyze dataset with custom threshold."""
+    print(f"Analyzing {args.dataset}")
+    print(f"Threshold: {args.threshold:.2%}")
+    print(f"Min confidence: {args.min_confidence:.2%}")
+```
 
-print(config.threshold)  # Output: 0.75
+**Usage:**
+
+```bash
+python -m myapp.cli analyze --dataset users.csv --threshold 75% --min-confidence 90%
+# Output:
+# Analyzing users.csv
+# Threshold: 75.00%
+# Min confidence: 90.00%
 ```
 
 Custom parsers are useful for:
@@ -443,33 +429,47 @@ Custom parsers are useful for:
 - Parsing percentages, ratios, or custom formats
 - Validating and transforming complex inputs
 
-### Custom Help Text
+### Help Text
 
 Add descriptive help text to fields using `Annotated` with `Help`:
 
 ```python
+# myapp/cli/backup.py
 from dataclasses import dataclass
 from typing import Annotated
-from argparse_boost import BoostedArgumentParser, Help, DefaultsHelpFormatter
+from argparse_boost import Help
 
 
 @dataclass(kw_only=True)
-class Config:
-    host: Annotated[str, Help("Database host address")]
-    timeout: Annotated[int, Help("Connection timeout in seconds")] = 30
-    retries: Annotated[int, Help("Number of retry attempts")] = 3
+class BackupConfig:
+    source: Annotated[str, Help("Source directory to backup")]
+    destination: Annotated[str, Help("Destination directory for backup")]
+    timeout: Annotated[int, Help("Backup timeout in seconds")] = 3600
+    retries: Annotated[int, Help("Number of retry attempts on failure")] = 3
+    compress: Annotated[bool, Help("Compress backup files")] = True
 
 
-parser = BoostedArgumentParser(
-    prog="myapp",
-    env_prefix="APP_",
-    formatter_class=DefaultsHelpFormatter,  # Shows defaults in help
-)
-parser.parse_arguments_from_dataclass(Config)
-args = parser.parse_args(["--help"])
+def main(args: BackupConfig) -> None:
+    """Create a backup of the source directory."""
+    compression = "compressed" if args.compress else "uncompressed"
+    print(f"Backing up {args.source} to {args.destination} ({compression})")
+    print(f"Timeout: {args.timeout}s, Retries: {args.retries}")
 ```
 
-`DefaultsHelpFormatter` automatically adds default values and "Required" indicators to help text.
+**View help:**
+
+```bash
+python -m myapp.cli backup --help
+# Shows:
+#   --source             Source directory to backup (Required)
+#   --destination        Destination directory for backup (Required)
+#   --timeout            Backup timeout in seconds (Default: 3600)
+#   --retries            Number of retry attempts on failure (Default: 3)
+#   --compress           Compress backup files (Default: True)
+```
+
+Help text is automatically enhanced with default values and "Required" indicators for fields without
+defaults.
 
 ### Advanced Types
 
@@ -478,55 +478,75 @@ args = parser.parse_args(["--help"])
 Lists are parsed from comma-separated values:
 
 ```python
+# myapp/cli/tag.py
 from dataclasses import dataclass, field
-from argparse_boost import BoostedArgumentParser, from_dict, dict_from_args
 
 
 @dataclass(kw_only=True)
-class Config:
+class TagConfig:
+    resource: str
     tags: list[str] = field(default_factory=list)
-    ports: list[int] = field(default_factory=list)
+    allowed_ports: list[int] = field(default_factory=list)
 
 
-parser = BoostedArgumentParser(prog="myapp", env_prefix="APP_")
-parser.parse_arguments_from_dataclass(Config)
-
-# CLI usage
-args = parser.parse_args(["--tags", "web,api,database", "--ports", "80,443,8080"])
-config = from_dict(dict_from_args(args, Config), Config)
-print(config.tags)  # ['web', 'api', 'database']
-print(config.ports)  # [80, 443, 8080]
+def main(args: TagConfig) -> None:
+    """Tag a resource with metadata."""
+    print(f"Tagging resource: {args.resource}")
+    if args.tags:
+        print(f"Tags: {', '.join(args.tags)}")
+    if args.allowed_ports:
+        print(f"Allowed ports: {', '.join(map(str, args.allowed_ports))}")
 ```
 
-Environment variable usage:
+**Usage:**
 
 ```bash
-APP_TAGS="production,backend" APP_PORTS="3000,8080" python myapp.py
+# Using CLI arguments
+python -m myapp.cli tag --resource server-01 --tags "web,api,prod" --allowed-ports "80,443,8080"
+# Output:
+# Tagging resource: server-01
+# Tags: web, api, prod
+# Allowed ports: 80, 443, 8080
+
+# Using environment variables
+MYAPP_RESOURCE=server-02 MYAPP_TAGS="database,backup" python -m myapp.cli tag
 ```
 
 #### Dictionaries
 
-Dictionaries are parsed from comma-separated key-value pairs:
+Dictionaries are parsed from comma-separated key-value pairs using `:` or `=`:
 
 ```python
+# myapp/cli/configure.py
 from dataclasses import dataclass, field
-from argparse_boost import BoostedArgumentParser, from_dict, dict_from_args
 
 
 @dataclass(kw_only=True)
-class Config:
+class ConfigureConfig:
+    service: str
     limits: dict[str, int] = field(default_factory=dict)
+    settings: dict[str, str] = field(default_factory=dict)
 
 
-parser = BoostedArgumentParser(prog="myapp")
-parser.parse_arguments_from_dataclass(Config)
+def main(args: ConfigureConfig) -> None:
+    """Configure service with limits and settings."""
+    print(f"Configuring {args.service}")
+    if args.limits:
+        for key, value in args.limits.items():
+            print(f"  Limit {key}: {value}")
+    if args.settings:
+        for key, value in args.settings.items():
+            print(f"  Setting {key}: {value}")
+```
 
-# Use colon or equals for key-value pairs
-args = parser.parse_args(["--limits", "daily:100,monthly:3000"])
-# or: ['--limits', 'daily=100,monthly=3000']
+**Usage:**
 
-config = from_dict(dict_from_args(args, Config), Config)
-print(config.limits)  # {'daily': 100, 'monthly': 3000}
+```bash
+# Using colon separator
+python -m myapp.cli configure --service api --limits "daily:100,monthly:3000"
+
+# Using equals separator
+python -m myapp.cli configure --service worker --settings "timeout=30,retries=3"
 ```
 
 #### Optional Types
@@ -534,24 +554,40 @@ print(config.limits)  # {'daily': 100, 'monthly': 3000}
 Optional fields are supported via `T | None` or `Optional[T]`:
 
 ```python
+# myapp/cli/process.py
 from dataclasses import dataclass
-from argparse_boost import BoostedArgumentParser, from_dict, dict_from_args
 
 
 @dataclass(kw_only=True)
-class Config:
-    required_field: str
-    optional_field: str | None = None
-    optional_with_default: int | None = 42
+class ProcessConfig:
+    input_file: str
+    output_file: str | None = None
+    max_retries: int | None = 3
+    format: str | None = None
 
 
-parser = BoostedArgumentParser(prog="myapp")
-parser.parse_arguments_from_dataclass(Config)
-args = parser.parse_args(["--required-field", "value"])
-config = from_dict(dict_from_args(args, Config), Config)
+def main(args: ProcessConfig) -> None:
+    """Process a file with optional parameters."""
+    print(f"Processing {args.input_file}")
+    if args.output_file:
+        print(f"Output to: {args.output_file}")
+    else:
+        print("Output to: stdout")
 
-print(config.optional_field)  # None
-print(config.optional_with_default)  # 42
+    print(f"Max retries: {args.max_retries}")
+    if args.format:
+        print(f"Format: {args.format}")
+```
+
+**Usage:**
+
+```bash
+# Only required field
+python -m myapp.cli process --input-file data.csv
+# Output: stdout, max_retries: 3, format: None
+
+# With optional fields
+python -m myapp.cli process --input-file data.csv --output-file result.json --format json
 ```
 
 ### Programmatic Usage
@@ -656,15 +692,7 @@ config = from_dict(merged, Config)
 
 ### Tips and Best Practices
 
-1. **Use `kw_only=True` for cleaner CLI:**
-   ```python
-   @dataclass(kw_only=True)  # Forces keyword-only arguments
-   class Config:
-       host: str
-       port: int = 5432
-   ```
-
-2. **Use `field(default_factory=...)` for mutable defaults:**
+1. **Use `field(default_factory=...)` for mutable defaults:**
    ```python
    from dataclasses import dataclass, field
 
@@ -675,7 +703,7 @@ config = from_dict(merged, Config)
        # tags: list[str] = []  # Bad - mutable default
    ```
 
-3. **Avoid field name conflicts with nested dataclasses:**
+2. **Avoid field name conflicts with nested dataclasses:**
    ```python
    # This will raise FieldNameConflictError:
    @dataclass(kw_only=True)
@@ -689,7 +717,7 @@ config = from_dict(merged, Config)
        db: Database
    ```
 
-4. **Use `env_prefix` to scope environment variables:**
+3. **Use `env_prefix` to scope environment variables:**
    ```python
    parser = BoostedArgumentParser(prog="myapp", env_prefix="MYAPP_")
    # Prevents conflicts with other apps' ENV vars
