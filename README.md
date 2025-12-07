@@ -107,7 +107,9 @@ class DeployConfig:
     environment: Annotated[str, Help("Target environment (dev/staging/prod)")]
     version: Annotated[str, Help("Version to deploy")]
     dry_run: Annotated[bool, Help("Simulate deployment without making changes")] = False
-    services: Annotated[list[str], Help("Services to deploy")] = field(default_factory=list)
+    services: Annotated[list[str], Help("Services to deploy")] = field(
+        default_factory=list
+    )
 
 
 def main(args: DeployConfig) -> None:
