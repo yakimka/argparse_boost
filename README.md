@@ -1,6 +1,6 @@
 # argparse-boost
 
-[![Build Status](https://github.com/yakimka/argparse-boost/actions/workflows/workflow-ci.yml/badge.svg?branch=main&event=push)](https://github.com/yakimka/argparse-boost/actions/workflows/workflow-ci.yml)
+[![Build Status](https://github.com/yakimka/argparse_boost/actions/workflows/workflow-ci.yml/badge.svg?branch=main&event=push)](https://github.com/yakimka/argparse_boost/actions/workflows/workflow-ci.yml)
 [![Codecov](https://codecov.io/gh/yakimka/argparse-boost/branch/main/graph/badge.svg)](https://codecov.io/gh/yakimka/argparse-boost)
 [![PyPI - Version](https://img.shields.io/pypi/v/argparse-boost.svg)](https://pypi.org/project/argparse-boost/)
 [![PyPI - Python Version](https://img.shields.io/pypi/pyversions/argparse-boost)](https://pypi.org/project/picodi/)
