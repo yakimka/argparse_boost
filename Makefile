@@ -1,8 +1,7 @@
 SHELL:=/usr/bin/env bash
 
-RUN=docker compose run --rm --remove-orphans
-RUN_DEVTOOLS=$(RUN) devtools
-RUN_PYTHON=$(RUN_DEVTOOLS) uv run
+RUN=
+RUN_PYTHON=$(RUN) uv run
 
 .PHONY: all
 all: help
@@ -13,7 +12,7 @@ pre-commit:  ## Run pre-commit with args
 
 .PHONY: uv
 uv:  ## Run uv with args
-	$(RUN_DEVTOOLS) uv $(args)
+	$(RUN) uv $(args)
 
 .PHONY: lint
 lint:  ## Run flake8, mypy, other linters and verify formatting
@@ -34,12 +33,12 @@ test:  ## Run tests
 
 .PHONY: package
 package:  ## Run packages (dependencies) checks
-	$(RUN_DEVTOOLS) uv pip check
+	$(RUN) uv pip check
 
 .PHONY: build-package
 build-package:  ## Build package
-	$(RUN_DEVTOOLS) uv build $(args)
-	$(RUN_DEVTOOLS) uv export --format=requirements-txt --output-file=dist/requirements.txt --locked --no-dev --no-emit-project
+	$(RUN) uv build $(args)
+	$(RUN) uv export --format=requirements-txt --output-file=dist/requirements.txt --locked --no-dev --no-emit-project
 
 .PHONY: build-production-image
 build-production-image:  ## Build production image
@@ -51,7 +50,7 @@ checks: lint package test  ## Run linting and tests
 
 .PHONY: run-ci
 run-ci:  ## Run CI locally
-	$(RUN_DEVTOOLS) ./ci.sh
+	$(RUN) ./ci.sh
 
 .PHONY: clean
 clean:  ## Clean up
