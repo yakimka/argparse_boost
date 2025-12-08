@@ -97,9 +97,6 @@ def test_nested_defaults_preserved_when_overriding_partial(monkeypatch, construc
 
 def test_custom_parser_is_applied_for_env_values(monkeypatch, construct_data):
     def triple(value: str) -> int:
-        # TODO: fix this behaviour
-        if isinstance(value, int):
-            return value
         return int(value) * 3
 
     @dataclass(kw_only=True)

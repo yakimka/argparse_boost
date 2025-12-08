@@ -124,10 +124,6 @@ def test_help_includes_default_value_from_dataclass():
 
 
 def _double_int(value: str) -> int:
-    # TODO: dont call two times (one from argparse, one from us)
-    # maybe don't use value from Parser in argparse
-    if isinstance(value, int):
-        return value
     return int(value) * 2
 
 
@@ -175,5 +171,5 @@ def test_dataclass_cli_and_env_merge_into_nested_config(monkeypatch):
     assert args.db_use_ssl == "true"
     assert args.tags == "blue,green"
     assert args.limits == "daily=5,monthly=10"
-    assert args.multiplier == 6
+    assert args.multiplier == "3"
     assert args.note == "from-env"

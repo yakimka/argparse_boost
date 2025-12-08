@@ -185,11 +185,12 @@ class BoostedArgumentParser(argparse.ArgumentParser):
     def make_value_parser(spec: FieldSpec) -> Callable[[str], Any]:
         def parse_value(raw: str) -> Any:
             try:
-                if spec.parser:
-                    return spec.parser(raw)
                 # just parse for validation
                 # but return raw string
-                parse_value_original(spec.type_, raw)
+                if spec.parser:
+                    spec.parser(raw)
+                else:
+                    parse_value_original(spec.type_, raw)
                 return raw
             except Exception as exc:
                 msg = str(exc)
