@@ -6,7 +6,10 @@ from types import NoneType
 from typing import Annotated, Any, cast, get_args, get_origin, get_type_hints
 
 from argparse_boost._exceptions import UnsupportedFieldTypeError
-from argparse_boost._framework import check_dataclass, unwrap_annotated
+from argparse_boost._framework import (
+    check_dataclass,
+    unwrap_annotated,
+)
 
 
 def strip_annotated(type_hint: Any) -> Any:

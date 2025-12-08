@@ -8,9 +8,12 @@ import typing
 from collections.abc import Callable, Sequence
 from dataclasses import MISSING, dataclass, fields, is_dataclass
 from types import NoneType
-from typing import Annotated, Any, get_args, get_origin
+from typing import TYPE_CHECKING, Annotated, Any, get_args, get_origin
 
 from argparse_boost._exceptions import FieldNameConflictError, UnsupportedFieldTypeError
+
+if TYPE_CHECKING:
+    from argparse_boost._config import Config
 
 
 class Parser:
@@ -175,47 +178,26 @@ def dict_from_args(
     return result
 
 
-def field_path_to_env_name(env_prefix: str = "") -> Callable[[tuple[str, ...]], str]:
-    """Return a function that maps field paths to environment variable names."""
-
-    def mapper(path: tuple[str, ...]) -> str:
-        return _env_name_from_parts(path, env_prefix)
-
-    return mapper
-
-
 def env_for_dataclass(
-    dc_type: type[Any],
-    *,
-    name_maker: Callable[[tuple[str, ...]], str] = field_path_to_env_name(),
+    fields: list[tuple[str, ...]],
+    config: Config,
 ) -> dict[tuple[str, ...], str]:
     """Read configuration values for a dataclass from environment variables."""
-    specs = field_specs_from_dataclass(dc_type)
     result: dict[tuple[str, ...], Any] = {}
-    for spec in specs:
-        env_name = name_maker(spec.path)
+    for field_path in fields:
+        env_name = _env_name_from_parts(field_path, config.env_prefix)
         if env_name not in os.environ:
             continue
         raw_value = os.environ[env_name]
-        result[spec.path] = raw_value
+        result[field_path] = raw_value
     return result
-
-
-def arg_option_to_env_name(env_prefix: str = "") -> Callable[[str], str]:
-    """Return a function that maps field paths to environment variable names."""
-
-    def mapper(option: str) -> str:
-        parts = option.lstrip("-").replace("-", "_").split("_")
-        return _env_name_from_parts(parts, env_prefix)
-
-    return mapper
 
 
 def env_for_argparser(
     parser: argparse.ArgumentParser,
     args: Sequence[str] | None = None,
     *,
-    name_maker: Callable[[str], str] = arg_option_to_env_name(),
+    env_prefix: str = "",
 ) -> list[tuple[str, str, str | list[str]]]:
     applied_options: set[str] = set()
     if args:
@@ -242,7 +224,8 @@ def env_for_argparser(
             continue
         for opt in action.option_strings:
             if opt.startswith("--"):
-                env_var_name = name_maker(opt)
+                parts = opt.lstrip("-").replace("-", "_").split("_")
+                env_var_name = _env_name_from_parts(parts, env_prefix)
                 if env_var_name in os.environ:
                     raw_value = os.environ[env_var_name]
 

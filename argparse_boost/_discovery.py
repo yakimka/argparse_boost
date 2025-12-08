@@ -18,6 +18,8 @@ from argparse_boost._parsers import from_dict
 if TYPE_CHECKING:
     import argparse
 
+    from argparse_boost._config import Config
+
 
 logger = logging.getLogger("argparse_boost")
 
@@ -277,32 +279,19 @@ def default_setup_environment(args: argparse.Namespace) -> argparse.Namespace:
 def setup_main(
     args: list[str] | None = None,
     *,
-    discover_commands: Callable[
-        [str, str],
-        dict[str, Command],
-    ] = default_discover_commands,
-    add_global_arguments: Callable[
-        [argparse.ArgumentParser],
-        argparse.ArgumentParser,
-    ] = default_add_global_arguments,
-    setup_environment: Callable[
-        [argparse.Namespace],
-        argparse.Namespace,
-    ] = default_setup_environment,
-    prog: str,
+    config: Config,
     description: str = "",
-    env_prefix: str = "",
     package_path: str,
     prefix: str,
 ) -> None:
     """Main entry point for CLI."""
-    commands = discover_commands(package_path, prefix)
+    commands = config.discover_commands_func(package_path, prefix)
 
     parser = BoostedArgumentParser(
-        prog=prog,
+        prog=config.app_name,
         description=description,
         formatter_class=DefaultsHelpFormatter,
-        env_prefix=env_prefix,
+        env_prefix=config.env_prefix,
     )
 
     subparsers = parser.add_subparsers(
@@ -312,13 +301,17 @@ def setup_main(
         required=True,
     )
 
-    register_commands(subparsers, commands, add_globals=add_global_arguments)
+    register_commands(
+        subparsers,
+        commands,
+        add_globals=config.add_global_arguments_func,
+    )
 
-    add_global_arguments(parser)
+    config.add_global_arguments_func(parser)
 
     parsed_args = parser.parse_args(args)
 
-    setup_environment(parsed_args)
+    config.setup_environment_func(parsed_args)
 
     command = parsed_args._command  # noqa: SLF001
 
