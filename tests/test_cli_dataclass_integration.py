@@ -5,13 +5,12 @@ import pytest
 
 from argparse_boost import (
     BoostedArgumentParser,
+    Config,
     DefaultsHelpFormatter,
     Help,
     Parser,
+    construct_dataclass,
     dict_from_args,
-    env_for_dataclass,
-    field_path_to_env_name,
-    from_dict,
 )
 
 
@@ -27,60 +26,56 @@ def parser(env_prefix):
 
 def test_cli_parsing_supports_list_with_comma(parser):
     @dataclass(kw_only=True)
-    class Config:
+    class MyConfig:
         tags: list[str]
 
-    parser.parse_arguments_from_dataclass(Config)
+    parser.parse_arguments_from_dataclass(MyConfig)
     args = parser.parse_args(["--tags", "one,two,three"])
 
-    merged = dict_from_args(args, Config)
-    config = from_dict(merged, Config)
+    merged = dict_from_args(args, MyConfig)
+    flat_data = {"_".join(k): v for k, v in merged.items()}
+    my_config = construct_dataclass(MyConfig, flat_data, config=Config())
 
-    assert config.tags == ["one", "two", "three"]
+    assert my_config.tags == ["one", "two", "three"]
 
 
-def test_from_dict_applies_defaults_and_optionals(parser):
+def test_applies_defaults_and_optionals(parser):
     @dataclass(kw_only=True)
     class Nested:
         value: str = "fallback"
 
     @dataclass(kw_only=True)
-    class Config:
+    class MyConfig:
         required: int
         optional_value: int | None = None
         with_default: str = "default"
         nested: Nested = field(default_factory=Nested)
 
-    parser.parse_arguments_from_dataclass(Config)
+    parser.parse_arguments_from_dataclass(MyConfig)
     args = parser.parse_args(["--required", "10"])
 
-    merged = dict_from_args(args, Config)
-    config = from_dict(merged, Config)
+    merged = dict_from_args(args, MyConfig)
+    flat_data = {"_".join(k): v for k, v in merged.items()}
+    my_config = construct_dataclass(MyConfig, flat_data, config=Config())
 
-    assert config.required == 10
-    assert config.optional_value is None
-    assert config.with_default == "default"
-    assert config.nested.value == "fallback"
+    assert my_config.required == 10
+    assert my_config.optional_value is None
+    assert my_config.with_default == "default"
+    assert my_config.nested.value == "fallback"
 
 
 def test_cli_values_override_env(monkeypatch):
     @dataclass(kw_only=True)
-    class Config:
+    class AppConfig:
         name: str
 
     parser = BoostedArgumentParser(prog="test", env_prefix="APP_")
-    parser.parse_arguments_from_dataclass(Config)
+    parser.parse_arguments_from_dataclass(AppConfig)
     monkeypatch.setenv("APP_NAME", "env-name")
 
     args = parser.parse_args(["--name", "cli-name"])
-    merged = env_for_dataclass(
-        Config,
-        name_maker=field_path_to_env_name(env_prefix="APP_"),
-    )
-    merged.update(dict_from_args(args, Config))
-    config = from_dict(merged, Config)
 
-    assert config.name == "cli-name"
+    assert args.name == "cli-name"
 
 
 def test_invalid_bool_from_cli_raises():
@@ -129,10 +124,6 @@ def test_help_includes_default_value_from_dataclass():
 
 
 def _double_int(value: str) -> int:
-    # TODO: dont call two times (one from argparse, one from us)
-    # maybe don't use value from Parser in argparse
-    if isinstance(value, int):
-        return value
     return int(value) * 2
 
 
@@ -144,7 +135,7 @@ def test_dataclass_cli_and_env_merge_into_nested_config(monkeypatch):
         use_ssl: bool = False
 
     @dataclass(kw_only=True)
-    class Config:
+    class AppConfig:
         name: str
         tags: list[str] = field(default_factory=list)
         limits: dict[str, int] = field(default_factory=dict)
@@ -155,7 +146,7 @@ def test_dataclass_cli_and_env_merge_into_nested_config(monkeypatch):
         )
 
     parser = BoostedArgumentParser(prog="test", env_prefix="APP_")
-    parser.parse_arguments_from_dataclass(Config)
+    parser.parse_arguments_from_dataclass(AppConfig)
     monkeypatch.setenv("APP_DB_HOST", "env-db.local")
     monkeypatch.setenv("APP_LIMITS", "daily=5,monthly=10")
     monkeypatch.setenv("APP_NOTE", "from-env")
@@ -174,18 +165,11 @@ def test_dataclass_cli_and_env_merge_into_nested_config(monkeypatch):
         ],
     )
 
-    config_data = env_for_dataclass(
-        Config,
-        name_maker=field_path_to_env_name(env_prefix="APP_"),
-    )
-    config_data.update(dict_from_args(args, Config))
-    config = from_dict(config_data, Config)
-
-    assert config.name == "cli-name"
-    assert config.db.host == "env-db.local"
-    assert config.db.port == 15432
-    assert config.db.use_ssl is True
-    assert config.tags == ["blue", "green"]
-    assert config.limits == {"daily": 5, "monthly": 10}
-    assert config.multiplier == 6
-    assert config.note == "from-env"
+    assert args.name == "cli-name"
+    assert args.db_host == "env-db.local"
+    assert args.db_port == "15432"
+    assert args.db_use_ssl == "true"
+    assert args.tags == "blue,green"
+    assert args.limits == "daily=5,monthly=10"
+    assert args.multiplier == "3"
+    assert args.note == "from-env"

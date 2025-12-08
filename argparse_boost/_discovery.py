@@ -18,6 +18,8 @@ from argparse_boost._parsers import from_dict
 if TYPE_CHECKING:
     import argparse
 
+    from argparse_boost._config import Config
+
 
 logger = logging.getLogger("argparse_boost")
 
@@ -101,7 +103,7 @@ def _inspect_main_signature(
     return ParameterType.NAMESPACE, None
 
 
-def default_discover_commands(package_path: str, prefix: str) -> dict[str, Command]:
+def discover_commands(package_path: str, prefix: str) -> dict[str, Command]:
     """
     Discover all command modules in package.
 
@@ -156,7 +158,7 @@ def default_discover_commands(package_path: str, prefix: str) -> dict[str, Comma
     return commands
 
 
-def default_add_global_arguments(
+def add_global_arguments(
     parser: argparse.ArgumentParser,
 ) -> argparse.ArgumentParser:
     """Attach arguments that are shared across all subcommands."""
@@ -245,8 +247,9 @@ def run_command(command: Command, args: argparse.Namespace) -> None:
             msg = f"Command {command.name} has DATACLASS type but no dataclass_type"
             raise ValueError(msg)
 
-        data = dict_from_args(args, command.dataclass_type)
-        dataclass_instance = from_dict(data, command.dataclass_type)
+        parsed = dict_from_args(args, command.dataclass_type)
+        data = {"_".join(k): v for k, v in parsed.items() if v is not None}
+        dataclass_instance = from_dict(command.dataclass_type, data)
         call_args = (dataclass_instance,)
     else:
         # Pass Namespace as-is
@@ -267,7 +270,7 @@ def setup_logging(log_level: str = "INFO") -> None:
     )
 
 
-def default_setup_environment(args: argparse.Namespace) -> argparse.Namespace:
+def setup_environment(args: argparse.Namespace) -> argparse.Namespace:
     """Global initialization: logging, Sentry, etc."""
     setup_logging(getattr(args, "log_level", "INFO"))
     # Future: Sentry initialization
@@ -277,32 +280,19 @@ def default_setup_environment(args: argparse.Namespace) -> argparse.Namespace:
 def setup_main(
     args: list[str] | None = None,
     *,
-    discover_commands: Callable[
-        [str, str],
-        dict[str, Command],
-    ] = default_discover_commands,
-    add_global_arguments: Callable[
-        [argparse.ArgumentParser],
-        argparse.ArgumentParser,
-    ] = default_add_global_arguments,
-    setup_environment: Callable[
-        [argparse.Namespace],
-        argparse.Namespace,
-    ] = default_setup_environment,
-    prog: str,
+    config: Config,
     description: str = "",
-    env_prefix: str = "",
     package_path: str,
     prefix: str,
 ) -> None:
     """Main entry point for CLI."""
-    commands = discover_commands(package_path, prefix)
+    commands = config.discover_commands_func(package_path, prefix)
 
     parser = BoostedArgumentParser(
-        prog=prog,
+        prog=config.app_name,
         description=description,
         formatter_class=DefaultsHelpFormatter,
-        env_prefix=env_prefix,
+        env_prefix=config.env_prefix,
     )
 
     subparsers = parser.add_subparsers(
@@ -312,13 +302,17 @@ def setup_main(
         required=True,
     )
 
-    register_commands(subparsers, commands, add_globals=add_global_arguments)
+    register_commands(
+        subparsers,
+        commands,
+        add_globals=config.add_global_arguments_func,
+    )
 
-    add_global_arguments(parser)
+    config.add_global_arguments_func(parser)
 
     parsed_args = parser.parse_args(args)
 
-    setup_environment(parsed_args)
+    config.setup_environment_func(parsed_args)
 
     command = parsed_args._command  # noqa: SLF001
 
