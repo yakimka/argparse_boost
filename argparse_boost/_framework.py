@@ -178,7 +178,7 @@ def dict_from_args(
     return result
 
 
-def env_for_dataclass(
+def env_loader(
     fields: list[tuple[str, ...]],
     config: Config,
 ) -> dict[tuple[str, ...], str]:

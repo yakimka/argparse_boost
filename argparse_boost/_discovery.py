@@ -103,7 +103,7 @@ def _inspect_main_signature(
     return ParameterType.NAMESPACE, None
 
 
-def default_discover_commands(package_path: str, prefix: str) -> dict[str, Command]:
+def discover_commands(package_path: str, prefix: str) -> dict[str, Command]:
     """
     Discover all command modules in package.
 
@@ -158,7 +158,7 @@ def default_discover_commands(package_path: str, prefix: str) -> dict[str, Comma
     return commands
 
 
-def default_add_global_arguments(
+def add_global_arguments(
     parser: argparse.ArgumentParser,
 ) -> argparse.ArgumentParser:
     """Attach arguments that are shared across all subcommands."""
@@ -270,7 +270,7 @@ def setup_logging(log_level: str = "INFO") -> None:
     )
 
 
-def default_setup_environment(args: argparse.Namespace) -> argparse.Namespace:
+def setup_environment(args: argparse.Namespace) -> argparse.Namespace:
     """Global initialization: logging, Sentry, etc."""
     setup_logging(getattr(args, "log_level", "INFO"))
     # Future: Sentry initialization
