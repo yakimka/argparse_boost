@@ -238,7 +238,12 @@ def parse_dataclass(cls: type[T], flat_data: dict[str, Any]) -> T:
     return cls(**parsed)
 
 
-def construct_dataclass(dc_type: type[T], *, config: Config) -> T:
+def construct_dataclass(
+    dc_type: type[T],
+    override: dict[str, Any] | None = None,
+    *,
+    config: Config,
+) -> T:
     specs = field_specs_from_dataclass(dc_type)
     check_dataclass(dc_type, specs)
     data = {}
@@ -246,6 +251,8 @@ def construct_dataclass(dc_type: type[T], *, config: Config) -> T:
     for loader in config.loaders:
         loaded = loader(paths, config)
         data.update({"_".join(path): value for path, value in loaded.items()})
+    if override:
+        data.update(override)
     return parse_dataclass(dc_type, data)
 
 

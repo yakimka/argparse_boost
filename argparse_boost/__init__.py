@@ -12,7 +12,7 @@ from argparse_boost._framework import (
     dict_from_args,
     env_for_dataclass,
 )
-from argparse_boost._parsers import from_dict
+from argparse_boost._parsers import construct_dataclass, from_dict
 
 __all__ = [
     "BoostedArgumentParser",
@@ -23,6 +23,7 @@ __all__ = [
     "Help",
     "Parser",
     "UnsupportedFieldTypeError",
+    "construct_dataclass",
     "dict_from_args",
     "env_for_dataclass",
     "from_dict",
