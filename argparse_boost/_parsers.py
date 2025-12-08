@@ -164,7 +164,7 @@ def parse_value(type_hint: Any, raw: Any) -> Any:
                 msg = f"Expected mapping, got {raw!r}"
                 raise TypeError(msg)
             # In type hint context, hint is always a type, not an instance
-            return parse_dataclass(cast("type", hint), raw)
+            return from_dict(cast("type", hint), raw)
 
         if not isinstance(raw, str):
             return raw
@@ -201,7 +201,7 @@ def extract_prefixed(data: dict[str, str], prefix: str) -> dict[str, str]:
 T = TypeVar("T")
 
 
-def parse_dataclass(cls: type[T], flat_data: dict[str, Any]) -> T:
+def from_dict(cls: type[T], flat_data: dict[str, Any]) -> T:
     type_hints = get_type_hints(cls, include_extras=True)
     parsed = {}
     for field_def in fields(cast("type", cls)):
@@ -216,7 +216,7 @@ def parse_dataclass(cls: type[T], flat_data: dict[str, Any]) -> T:
 
         nested_data = extract_prefixed(flat_data, field_def.name)
         if nested_data and is_dataclass(strip_annotated(hint)):
-            parsed[field_def.name] = parse_dataclass(strip_annotated(hint), nested_data)
+            parsed[field_def.name] = from_dict(strip_annotated(hint), nested_data)
             continue
 
         default_value = take_default(field_def)
@@ -229,7 +229,7 @@ def parse_dataclass(cls: type[T], flat_data: dict[str, Any]) -> T:
             continue
 
         if is_dataclass(strip_annotated(hint)):
-            parsed[field_def.name] = parse_dataclass(strip_annotated(hint), nested_data)
+            parsed[field_def.name] = from_dict(strip_annotated(hint), nested_data)
             continue
 
         msg = f"Missing required configuration key: {field_def.name}"
@@ -253,17 +253,4 @@ def construct_dataclass(
         data.update({"_".join(path): value for path, value in loaded.items()})
     if override:
         data.update(override)
-    return parse_dataclass(dc_type, data)
-
-
-def from_dict(cls: type[T], flat_data: dict[str, Any]) -> T:
-    """Public API for converting CLI/ENV merged data into dataclass instances.
-
-    Args:
-        cls: The dataclass type to construct
-        flat_data: Flat dictionary with underscore-separated keys (e.g., {"nested_field": "value"})
-
-    Returns:
-        An instance of the dataclass with parsed values
-    """
-    return parse_dataclass(cls, flat_data)
+    return from_dict(dc_type, data)

@@ -13,7 +13,7 @@ from typing import TYPE_CHECKING, Any, get_origin, get_type_hints
 
 from argparse_boost._argument_parser import BoostedArgumentParser, DefaultsHelpFormatter
 from argparse_boost._framework import dict_from_args
-from argparse_boost._parsers import parse_dataclass
+from argparse_boost._parsers import from_dict
 
 if TYPE_CHECKING:
     import argparse
@@ -249,7 +249,7 @@ def run_command(command: Command, args: argparse.Namespace) -> None:
 
         parsed = dict_from_args(args, command.dataclass_type)
         data = {"_".join(k): v for k, v in parsed.items() if v is not None}
-        dataclass_instance = parse_dataclass(command.dataclass_type, data)
+        dataclass_instance = from_dict(command.dataclass_type, data)
         call_args = (dataclass_instance,)
     else:
         # Pass Namespace as-is
