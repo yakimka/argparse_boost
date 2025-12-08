@@ -5,14 +5,15 @@ import pytest
 
 from argparse_boost import (
     BoostedArgumentParser,
+    Config,
     DefaultsHelpFormatter,
     Help,
     Parser,
     dict_from_args,
     env_for_dataclass,
-    field_path_to_env_name,
     from_dict,
 )
+from argparse_boost._framework import field_specs_from_dataclass
 
 
 @pytest.fixture()
@@ -65,22 +66,22 @@ def test_from_dict_applies_defaults_and_optionals(parser):
 
 def test_cli_values_override_env(monkeypatch):
     @dataclass(kw_only=True)
-    class Config:
+    class AppConfig:
         name: str
 
     parser = BoostedArgumentParser(prog="test", env_prefix="APP_")
-    parser.parse_arguments_from_dataclass(Config)
+    parser.parse_arguments_from_dataclass(AppConfig)
     monkeypatch.setenv("APP_NAME", "env-name")
 
     args = parser.parse_args(["--name", "cli-name"])
-    merged = env_for_dataclass(
-        Config,
-        name_maker=field_path_to_env_name(env_prefix="APP_"),
-    )
-    merged.update(dict_from_args(args, Config))
-    config = from_dict(merged, Config)
+    specs = field_specs_from_dataclass(AppConfig)
+    field_paths = [spec.path for spec in specs]
+    config = Config(env_prefix="APP_")
+    merged = env_for_dataclass(field_paths, config)
+    merged.update(dict_from_args(args, AppConfig))
+    app_config = from_dict(merged, AppConfig)
 
-    assert config.name == "cli-name"
+    assert app_config.name == "cli-name"
 
 
 def test_invalid_bool_from_cli_raises():
@@ -144,7 +145,7 @@ def test_dataclass_cli_and_env_merge_into_nested_config(monkeypatch):
         use_ssl: bool = False
 
     @dataclass(kw_only=True)
-    class Config:
+    class AppConfig:
         name: str
         tags: list[str] = field(default_factory=list)
         limits: dict[str, int] = field(default_factory=dict)
@@ -155,7 +156,7 @@ def test_dataclass_cli_and_env_merge_into_nested_config(monkeypatch):
         )
 
     parser = BoostedArgumentParser(prog="test", env_prefix="APP_")
-    parser.parse_arguments_from_dataclass(Config)
+    parser.parse_arguments_from_dataclass(AppConfig)
     monkeypatch.setenv("APP_DB_HOST", "env-db.local")
     monkeypatch.setenv("APP_LIMITS", "daily=5,monthly=10")
     monkeypatch.setenv("APP_NOTE", "from-env")
@@ -174,18 +175,18 @@ def test_dataclass_cli_and_env_merge_into_nested_config(monkeypatch):
         ],
     )
 
-    config_data = env_for_dataclass(
-        Config,
-        name_maker=field_path_to_env_name(env_prefix="APP_"),
-    )
-    config_data.update(dict_from_args(args, Config))
-    config = from_dict(config_data, Config)
+    specs = field_specs_from_dataclass(AppConfig)
+    field_paths = [spec.path for spec in specs]
+    config_obj = Config(env_prefix="APP_")
+    config_data = env_for_dataclass(field_paths, config_obj)
+    config_data.update(dict_from_args(args, AppConfig))
+    app_config = from_dict(config_data, AppConfig)
 
-    assert config.name == "cli-name"
-    assert config.db.host == "env-db.local"
-    assert config.db.port == 15432
-    assert config.db.use_ssl is True
-    assert config.tags == ["blue", "green"]
-    assert config.limits == {"daily": 5, "monthly": 10}
-    assert config.multiplier == 6
-    assert config.note == "from-env"
+    assert app_config.name == "cli-name"
+    assert app_config.db.host == "env-db.local"
+    assert app_config.db.port == 15432
+    assert app_config.db.use_ssl is True
+    assert app_config.tags == ["blue", "green"]
+    assert app_config.limits == {"daily": 5, "monthly": 10}
+    assert app_config.multiplier == 6
+    assert app_config.note == "from-env"

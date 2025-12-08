@@ -13,7 +13,7 @@ from typing import TYPE_CHECKING, Any, get_origin, get_type_hints
 
 from argparse_boost._argument_parser import BoostedArgumentParser, DefaultsHelpFormatter
 from argparse_boost._framework import dict_from_args
-from argparse_boost._parsers import from_dict
+from argparse_boost._parsers import parse_dataclass
 
 if TYPE_CHECKING:
     import argparse
@@ -247,8 +247,9 @@ def run_command(command: Command, args: argparse.Namespace) -> None:
             msg = f"Command {command.name} has DATACLASS type but no dataclass_type"
             raise ValueError(msg)
 
-        data = dict_from_args(args, command.dataclass_type)
-        dataclass_instance = from_dict(data, command.dataclass_type)
+        parsed = dict_from_args(args, command.dataclass_type)
+        data = {"_".join(k): v for k, v in parsed.items() if v is not None}
+        dataclass_instance = parse_dataclass(command.dataclass_type, data)
         call_args = (dataclass_instance,)
     else:
         # Pass Namespace as-is

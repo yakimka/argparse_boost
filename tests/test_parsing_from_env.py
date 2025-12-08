@@ -6,13 +6,14 @@ import pytest
 
 from argparse_boost import (
     BoostedArgumentParser,
+    Config,
     FieldNameConflictError,
     Parser,
     dict_from_args,
     env_for_dataclass,
-    field_path_to_env_name,
     from_dict,
 )
+from argparse_boost._framework import field_specs_from_dataclass
 
 
 @pytest.fixture()
@@ -33,10 +34,10 @@ def construct_data(request, parser, env_prefix):
             args = parser.parse_args([])
             data = dict_from_args(args, dataclass_type)
         else:
-            data = env_for_dataclass(
-                dataclass_type,
-                name_maker=field_path_to_env_name(env_prefix=env_prefix),
-            )
+            specs = field_specs_from_dataclass(dataclass_type)
+            field_paths = [spec.path for spec in specs]
+            config = Config(env_prefix=env_prefix)
+            data = env_for_dataclass(field_paths, config)
         return from_dict(data, dataclass_type)
 
     return maker

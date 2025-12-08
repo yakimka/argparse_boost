@@ -3,13 +3,26 @@ from __future__ import annotations
 from dataclasses import MISSING, Field, fields, is_dataclass
 from functools import singledispatch
 from types import NoneType
-from typing import Annotated, Any, cast, get_args, get_origin, get_type_hints
+from typing import (
+    TYPE_CHECKING,
+    Annotated,
+    Any,
+    TypeVar,
+    cast,
+    get_args,
+    get_origin,
+    get_type_hints,
+)
 
 from argparse_boost._exceptions import UnsupportedFieldTypeError
 from argparse_boost._framework import (
     check_dataclass,
+    field_specs_from_dataclass,
     unwrap_annotated,
 )
+
+if TYPE_CHECKING:
+    from argparse_boost._config import Config
 
 
 def strip_annotated(type_hint: Any) -> Any:
@@ -150,7 +163,8 @@ def parse_value(type_hint: Any, raw: Any) -> Any:
             if not isinstance(raw, dict):
                 msg = f"Expected mapping, got {raw!r}"
                 raise TypeError(msg)
-            return parse_dataclass(hint, raw)
+            # In type hint context, hint is always a type, not an instance
+            return parse_dataclass(cast("type", hint), raw)
 
         if not isinstance(raw, str):
             return raw
@@ -184,10 +198,13 @@ def extract_prefixed(data: dict[str, str], prefix: str) -> dict[str, str]:
     }
 
 
-def parse_dataclass(cls: Any, flat_data: dict[str, Any]) -> Any:
+T = TypeVar("T")
+
+
+def parse_dataclass(cls: type[T], flat_data: dict[str, Any]) -> T:
     type_hints = get_type_hints(cls, include_extras=True)
     parsed = {}
-    for field_def in fields(cls):
+    for field_def in fields(cast("type", cls)):
         hint = type_hints.get(field_def.name, field_def.type)
         if field_def.name in flat_data:
             _, parser_wrapper, _ = unwrap_annotated(hint)
@@ -221,12 +238,25 @@ def parse_dataclass(cls: Any, flat_data: dict[str, Any]) -> Any:
     return cls(**parsed)
 
 
-def from_dict(
-    data: dict[tuple[str, ...], Any] | dict[str, Any],
-    dc_type: type[Any],
-) -> Any:
-    """Construct a dataclass instance from flat mapping (CLI/env merged)."""
-    check_dataclass(dc_type)
-    if any(isinstance(key, tuple) for key in data):
-        data = {"_".join(path): value for path, value in data.items()}
-    return parse_dataclass(dc_type, cast("dict[str, Any]", data))
+def construct_dataclass(dc_type: type[T], *, config: Config) -> T:
+    specs = field_specs_from_dataclass(dc_type)
+    check_dataclass(dc_type, specs)
+    data = {}
+    paths = [spec.path for spec in specs]
+    for loader in config.loaders:
+        loaded = loader(paths, config)
+        data.update({"_".join(path): value for path, value in loaded.items()})
+    return parse_dataclass(dc_type, data)
+
+
+def from_dict(cls: type[T], flat_data: dict[str, Any]) -> T:
+    """Public API for converting CLI/ENV merged data into dataclass instances.
+
+    Args:
+        cls: The dataclass type to construct
+        flat_data: Flat dictionary with underscore-separated keys (e.g., {"nested_field": "value"})
+
+    Returns:
+        An instance of the dataclass with parsed values
+    """
+    return parse_dataclass(cls, flat_data)
