@@ -1,8 +1,8 @@
-from argparse_boost._argument_parser import BoostedArgumentParser, DefaultsHelpFormatter
+from argparse_boost._argument_parser import BoostedArgumentParser, BoostedHelpFormatter
 from argparse_boost._config import Config
-from argparse_boost._discovery import setup_main
+from argparse_boost._discovery import setup_cli
 from argparse_boost._exceptions import (
-    CliSetupError,
+    ArgparseBoostError,
     FieldNameConflictError,
     UnsupportedFieldTypeError,
 )
@@ -15,10 +15,10 @@ from argparse_boost._framework import (
 from argparse_boost._parsers import construct_dataclass
 
 __all__ = [
+    "ArgparseBoostError",
     "BoostedArgumentParser",
-    "CliSetupError",
+    "BoostedHelpFormatter",
     "Config",
-    "DefaultsHelpFormatter",
     "FieldNameConflictError",
     "Help",
     "Parser",
@@ -26,5 +26,5 @@ __all__ = [
     "construct_dataclass",
     "dict_from_args",
     "env_loader",
-    "setup_main",
+    "setup_cli",
 ]

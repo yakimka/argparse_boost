@@ -2,13 +2,13 @@ import argparse
 
 import pytest
 
-from argparse_boost import DefaultsHelpFormatter
+from argparse_boost import BoostedHelpFormatter
 
 
 @pytest.fixture()
 def parser_with_formatter():
     """ArgumentParser using DefaultsHelpFormatter."""
-    return argparse.ArgumentParser(formatter_class=DefaultsHelpFormatter)
+    return argparse.ArgumentParser(formatter_class=BoostedHelpFormatter)
 
 
 def test_help_formatter_appends_required_suffix(parser_with_formatter):
