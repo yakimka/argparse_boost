@@ -14,6 +14,7 @@ from argparse_boost._framework import env_loader
 
 if TYPE_CHECKING:
     import argparse
+    from types import ModuleType
 
 
 class Loader(Protocol):
@@ -33,7 +34,9 @@ class Config:
     env_prefix: str = ""
     env_file: str | None = None
     loaders: list[Loader] = field(default_factory=lambda: [env_loader])
-    discover_commands_func: Callable[[str, str], dict[str, Command]] = discover_commands
+    discover_commands_func: Callable[[ModuleType], dict[str, Command]] = (
+        discover_commands
+    )
     add_global_arguments_func: Callable[
         [argparse.ArgumentParser],
         argparse.ArgumentParser,

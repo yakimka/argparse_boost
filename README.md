@@ -33,17 +33,19 @@ myapp/
 **myapp/cli/__main__.py:**
 
 ```python
-import os
-from argparse_boost import setup_main
+from argparse_boost import Config, setup_main
+from myapp import cli
 
 
 def main() -> None:
-    setup_main(
-        prog="myapp",
-        description="My CLI application",
+    config = Config(
+        app_name="myapp",
         env_prefix="MYAPP_",
-        package_path=os.path.dirname(__file__),
-        prefix="myapp.cli.",
+    )
+    setup_main(
+        config=config,
+        description="My CLI application",
+        commands_package=cli,
     )
 
 

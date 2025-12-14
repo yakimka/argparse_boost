@@ -17,6 +17,7 @@ from argparse_boost._parsers import from_dict
 
 if TYPE_CHECKING:
     import argparse
+    from types import ModuleType
 
     from argparse_boost._config import Config
 
@@ -103,12 +104,19 @@ def _inspect_main_signature(
     return ParameterType.NAMESPACE, None
 
 
-def discover_commands(package_path: str, prefix: str) -> dict[str, Command]:
+def discover_commands(commands_package: ModuleType) -> dict[str, Command]:
     """
     Discover all command modules in package.
 
+    Args:
+        commands_package: Package module to scan for commands
+
     Returns:
         Dict mapping command name -> Command metadata
+
+    Raises:
+        AttributeError: If commands_package doesn't have __path__ attribute (not a package)
+        ValueError: If commands_package has empty __path__
 
     Discovery rules:
     - Module must be in specified package
@@ -118,6 +126,20 @@ def discover_commands(package_path: str, prefix: str) -> dict[str, Command]:
     - Module may optionally have setup_parser() function
     - Modules that fail to import or expose invalid setup_parser() are skipped with a warning
     """
+    if not hasattr(commands_package, "__path__"):
+        msg = (
+            f"Module {commands_package.__name__!r} is not a package. "
+            "Only package modules with __path__ can be used for command discovery."
+        )
+        raise AttributeError(msg)
+
+    if not commands_package.__path__:
+        msg = f"Package {commands_package.__name__!r} has empty __path__."
+        raise ValueError(msg)
+
+    package_path = commands_package.__path__[0]
+    prefix = f"{commands_package.__name__}."
+
     commands: dict[str, Command] = {}
     for module_info in pkgutil.iter_modules([package_path], prefix=prefix):
         module_name = module_info.name.split(".")[-1]
@@ -282,11 +304,21 @@ def setup_main(
     *,
     config: Config,
     description: str = "",
-    package_path: str,
-    prefix: str,
+    commands_package: ModuleType,
 ) -> None:
-    """Main entry point for CLI."""
-    commands = config.discover_commands_func(package_path, prefix)
+    """
+    Main entry point for CLI with automatic command discovery.
+
+    Args:
+        args: Command-line arguments to parse (defaults to sys.argv)
+        config: Configuration object with app settings
+        description: Description text for the CLI application
+        commands_package: Package module containing command modules to discover
+
+    Raises:
+        AttributeError: If commands_package is not a package module
+    """
+    commands = config.discover_commands_func(commands_package)
 
     parser = BoostedArgumentParser(
         prog=config.app_name,

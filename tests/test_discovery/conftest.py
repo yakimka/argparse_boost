@@ -1,11 +1,9 @@
 from collections.abc import Callable
-from pathlib import Path
 
 import pytest
 
 from argparse_boost import Config, setup_main
-
-THIS_DIR = Path(__file__).parent
+from tests.test_discovery import cli
 
 
 @pytest.fixture()
@@ -23,8 +21,7 @@ def make_main():
         return setup_main(
             args,
             config=config,
-            package_path=str(THIS_DIR / "cli"),
-            prefix="tests.test_discovery.cli.",
+            commands_package=cli,
         )
 
     return maker
