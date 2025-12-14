@@ -16,7 +16,7 @@ from argparse_boost._framework import (
 from argparse_boost._parsers import parse_value as parse_value_original
 
 
-class DefaultsHelpFormatter(argparse.HelpFormatter):
+class BoostedHelpFormatter(argparse.HelpFormatter):
     """Append default values to help text in a consistent format."""
 
     def _get_help_string(self, action: argparse.Action) -> str:

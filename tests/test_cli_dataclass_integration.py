@@ -5,8 +5,8 @@ import pytest
 
 from argparse_boost import (
     BoostedArgumentParser,
+    BoostedHelpFormatter,
     Config,
-    DefaultsHelpFormatter,
     Help,
     Parser,
     construct_dataclass,
@@ -113,7 +113,7 @@ def test_help_includes_default_value_from_dataclass():
     parser = BoostedArgumentParser(
         prog="test",
         env_prefix="APP_",
-        formatter_class=DefaultsHelpFormatter,
+        formatter_class=BoostedHelpFormatter,
     )
     parser.parse_arguments_from_dataclass(Config)
 

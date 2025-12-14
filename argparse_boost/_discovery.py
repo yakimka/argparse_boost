@@ -11,7 +11,7 @@ from dataclasses import dataclass, is_dataclass
 from enum import Enum, auto
 from typing import TYPE_CHECKING, Any, get_origin, get_type_hints
 
-from argparse_boost._argument_parser import BoostedArgumentParser, DefaultsHelpFormatter
+from argparse_boost._argument_parser import BoostedArgumentParser, BoostedHelpFormatter
 from argparse_boost._framework import dict_from_args
 from argparse_boost._parsers import from_dict
 
@@ -219,7 +219,7 @@ def register_commands(
             name,
             help=help_text,
             description=command.doc,
-            formatter_class=DefaultsHelpFormatter,
+            formatter_class=BoostedHelpFormatter,
         )
 
         # Auto-register dataclass arguments if needed
@@ -299,7 +299,7 @@ def setup_environment(args: argparse.Namespace) -> argparse.Namespace:
     return args
 
 
-def setup_main(
+def setup_cli(
     args: list[str] | None = None,
     *,
     config: Config,
@@ -323,7 +323,7 @@ def setup_main(
     parser = BoostedArgumentParser(
         prog=config.app_name,
         description=description,
-        formatter_class=DefaultsHelpFormatter,
+        formatter_class=BoostedHelpFormatter,
         env_prefix=config.env_prefix,
     )
 

@@ -33,7 +33,7 @@ myapp/
 **myapp/cli/__main__.py:**
 
 ```python
-from argparse_boost import Config, setup_main
+from argparse_boost import Config, setup_cli
 from myapp import cli
 
 
@@ -42,7 +42,7 @@ def main() -> None:
         app_name="myapp",
         env_prefix="MYAPP_",
     )
-    setup_main(
+    setup_cli(
         config=config,
         description="My CLI application",
         commands_package=cli,

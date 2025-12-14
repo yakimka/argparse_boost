@@ -2,7 +2,7 @@ from collections.abc import Callable
 
 import pytest
 
-from argparse_boost import Config, setup_main
+from argparse_boost import Config, setup_cli
 from tests.test_discovery import cli
 
 
@@ -18,7 +18,7 @@ def make_main():
         )
         if add_global_arguments is not None:
             config.add_global_arguments_func = add_global_arguments
-        return setup_main(
+        return setup_cli(
             args,
             config=config,
             commands_package=cli,
