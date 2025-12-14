@@ -33,17 +33,19 @@ myapp/
 **myapp/cli/__main__.py:**
 
 ```python
-import os
-from argparse_boost import setup_main
+from argparse_boost import Config, setup_main
+from myapp import cli
 
 
 def main() -> None:
-    setup_main(
-        prog="myapp",
-        description="My CLI application",
+    config = Config(
+        app_name="myapp",
         env_prefix="MYAPP_",
-        package_path=os.path.dirname(__file__),
-        prefix="myapp.cli.",
+    )
+    setup_main(
+        config=config,
+        description="My CLI application",
+        commands_package=cli,
     )
 
 
@@ -200,7 +202,7 @@ configuration from environment variables:
 
 ```python
 from dataclasses import dataclass, field
-from argparse_boost import env_for_dataclass, from_dict, field_path_to_env_name
+from argparse_boost import construct_dataclass, Config
 
 
 @dataclass(kw_only=True)
@@ -220,15 +222,14 @@ class AppConfig:
 
 
 # Load configuration from environment variables
-config_data = env_for_dataclass(
+app_config = construct_dataclass(
     AppConfig,
-    name_maker=field_path_to_env_name(env_prefix="APP_"),
+    config=Config(env_prefix="APP_"),
 )
-config = from_dict(config_data, AppConfig)
 
 # Now use your type-safe config
-print(f"Connecting to {config.db.host}:{config.db.port}")
-print(f"Debug mode: {config.debug}")
+print(f"Connecting to {app_config.db.host}:{app_config.db.port}")
+print(f"Debug mode: {app_config.debug}")
 ```
 
 **Environment variables:**
@@ -598,37 +599,36 @@ For more control, use the low-level API:
 from dataclasses import dataclass
 from argparse_boost import (
     BoostedArgumentParser,
-    from_dict,
+    construct_dataclass,
+    Config,
     dict_from_args,
-    env_for_dataclass,
-    field_path_to_env_name,
 )
 
 
 @dataclass(kw_only=True)
-class Config:
+class Settings:
     host: str
     port: int = 5432
 
 
-parser = BoostedArgumentParser(prog="myapp", env_prefix="APP_")
-parser.parse_arguments_from_dataclass(Config)
-args = parser.parse_args(["--host", "example.com"])
-
-# Read environment variables
-env_data = env_for_dataclass(
-    Config,
-    name_maker=field_path_to_env_name(env_prefix="APP_"),
+# Option 1: Simple approach - automatic ENV loading
+settings = construct_dataclass(
+    Settings,
+    config=Config(env_prefix="APP_"),
 )
 
-# Extract CLI arguments
-cli_data = dict_from_args(args, Config)
+# Option 2: Manual approach with BoostedArgumentParser
+parser = BoostedArgumentParser(prog="myapp", env_prefix="APP_")
+parser.parse_arguments_from_dataclass(Settings)
+args = parser.parse_args(["--host", "example.com"])
 
-# Merge (CLI overrides ENV)
-merged = {**env_data, **cli_data}
-
-# Construct dataclass
-config = from_dict(merged, Config)
+# Extract CLI arguments and construct with overrides
+cli_data = dict_from_args(args, Settings)
+settings = construct_dataclass(
+    Settings,
+    override=cli_data,
+    config=Config(env_prefix="APP_"),
+)
 ```
 
 ### API Reference
@@ -639,9 +639,9 @@ config = from_dict(merged, Config)
 
 **Configuration Functions:**
 
-- `from_dict(data, dataclass_type)` - Construct dataclass from flat dict
-- `env_for_dataclass(dataclass_type, name_maker)` - Read ENV vars to flat dict
-- `field_path_to_env_name(env_prefix)` - Create ENV name mapper
+- `construct_dataclass(dc_type, override, *, config)` - Construct dataclass from environment and overrides
+- `env_for_dataclass(fields, config)` - Read ENV vars for specific fields (advanced use)
+- `Config` - Configuration class with env_prefix, loaders, and other options
 
 **Parser Classes:**
 
@@ -651,7 +651,6 @@ config = from_dict(merged, Config)
 **Dataclass Parsing:**
 
 - `dict_from_args(args, dataclass_type)` - Extract CLI args to flat dict
-- `arg_option_to_env_name(env_prefix)` - Convert CLI option to ENV name
 
 **Annotations:**
 
@@ -698,7 +697,7 @@ config = from_dict(merged, Config)
 
 
    @dataclass(kw_only=True)
-   class Config:
+   class Settings:
        tags: list[str] = field(default_factory=list)  # Good
        # tags: list[str] = []  # Bad - mutable default
    ```
@@ -712,7 +711,7 @@ config = from_dict(merged, Config)
 
 
    @dataclass(kw_only=True)
-   class Config:
+   class Settings:
        db_password: str  # Conflicts with db.password when flattened
        db: Database
    ```

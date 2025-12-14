@@ -2,7 +2,7 @@ from dataclasses import dataclass
 
 import pytest
 
-from argparse_boost import from_dict
+from argparse_boost import Config, construct_dataclass
 
 
 @pytest.mark.parametrize(
@@ -17,20 +17,20 @@ from argparse_boost import from_dict
 )
 def test_can_parse_none_field(data):
     @dataclass
-    class Config:
+    class MyConfig:
         name: None
 
-    parsed = from_dict(data, Config)
+    parsed = construct_dataclass(MyConfig, data, config=Config())
 
     assert parsed.name is None
 
 
 def test_can_parse_value_for_optional_field():
     @dataclass
-    class Config:
+    class MyConfig:
         age: int | None
 
-    parsed = from_dict({"age": 42}, Config)
+    parsed = construct_dataclass(MyConfig, {"age": 42}, config=Config())
 
     assert parsed.age == 42
 
@@ -47,20 +47,20 @@ def test_can_parse_value_for_optional_field():
 )
 def test_can_parse_none_for_optional_field(data):
     @dataclass
-    class Config:
+    class MyConfig:
         name: int | None
 
-    parsed = from_dict(data, Config)
+    parsed = construct_dataclass(MyConfig, data, config=Config())
 
     assert parsed.name is None
 
 
 def test_can_parse_string_none_for_optional_string_field():
     @dataclass
-    class Config:
+    class MyConfig:
         name: str | None
 
-    parsed = from_dict({"name": "null"}, Config)
+    parsed = construct_dataclass(MyConfig, {"name": "null"}, config=Config())
 
     assert parsed.name is None
 
@@ -74,10 +74,10 @@ def test_can_parse_string_none_for_optional_string_field():
 )
 def test_can_parse_optional_value_from_list_of_strings(data):
     @dataclass
-    class Config:
+    class MyConfig:
         name: list[str | None]
 
-    parsed = from_dict(data, Config)
+    parsed = construct_dataclass(MyConfig, data, config=Config())
 
     assert parsed.name == [None, "Alice", "Bob", None]
 
@@ -91,9 +91,9 @@ def test_can_parse_optional_value_from_list_of_strings(data):
 )
 def test_can_parse_optional_value_from_dict_of_ints(data):
     @dataclass
-    class Config:
+    class MyConfig:
         scores: dict[str, int | None]
 
-    parsed = from_dict(data, Config)
+    parsed = construct_dataclass(MyConfig, data, config=Config())
 
     assert parsed.scores == {"alice": None, "bob": 2, "carol": 3}

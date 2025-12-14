@@ -9,7 +9,6 @@ from typing import Any, TypeVar
 from argparse_boost._framework import (
     _UNSET,
     FieldSpec,
-    arg_option_to_env_name,
     check_dataclass,
     env_for_argparser,
     field_specs_from_dataclass,
@@ -69,7 +68,6 @@ class BoostedArgumentParser(argparse.ArgumentParser):
     def __init__(self, *args: Any, env_prefix: str = "", **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
         self.env_prefix = env_prefix
-        self._env_name_maker = arg_option_to_env_name(env_prefix=env_prefix)
 
     def add_subparsers(self, **kwargs: Any) -> argparse._SubParsersAction:
         """Override to auto-propagate env_prefix to child parsers."""
@@ -99,7 +97,7 @@ class BoostedArgumentParser(argparse.ArgumentParser):
         args: Sequence[str] | None = None,
         namespace: _N | None = None,
     ) -> tuple[argparse.Namespace | _N, list[str]]:
-        if env_values := env_for_argparser(self, args, name_maker=self._env_name_maker):
+        if env_values := env_for_argparser(self, args, env_prefix=self.env_prefix):
             if args is None:
                 args = sys.argv[1:]
             expanded_args = []
@@ -122,7 +120,7 @@ class BoostedArgumentParser(argparse.ArgumentParser):
         env_vars = []
         for opt_name, env_name, env_value in env_for_argparser(
             self,
-            name_maker=self._env_name_maker,
+            env_prefix=self.env_prefix,
         ):
             # Convert list values to comma-separated string for display
             if isinstance(env_value, list):
@@ -187,11 +185,12 @@ class BoostedArgumentParser(argparse.ArgumentParser):
     def make_value_parser(spec: FieldSpec) -> Callable[[str], Any]:
         def parse_value(raw: str) -> Any:
             try:
-                if spec.parser:
-                    return spec.parser(raw)
                 # just parse for validation
                 # but return raw string
-                parse_value_original(spec.type_, raw)
+                if spec.parser:
+                    spec.parser(raw)
+                else:
+                    parse_value_original(spec.type_, raw)
                 return raw
             except Exception as exc:
                 msg = str(exc)

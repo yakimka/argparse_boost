@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 
-from argparse_boost import from_dict
+from argparse_boost import Config, construct_dataclass
 
 
 def test_parse_nested_dataclass_from_flat_dict_keys():
@@ -9,14 +9,15 @@ def test_parse_nested_dataclass_from_flat_dict_keys():
         url: str
 
     @dataclass
-    class Config:
+    class MyConfig:
         db: DBConfig
 
-    config = from_dict(
+    my_config = construct_dataclass(
+        MyConfig,
         {"db_url": "sqlite:///test.db"},
-        Config,
+        config=Config(),
     )
-    assert config.db.url == "sqlite:///test.db"
+    assert my_config.db.url == "sqlite:///test.db"
 
 
 def test_parse_nested_dataclass_from_dataclass():
@@ -25,14 +26,15 @@ def test_parse_nested_dataclass_from_dataclass():
         url: str
 
     @dataclass
-    class Config:
+    class MyConfig:
         db: DBConfig
 
-    config = from_dict(
+    my_config = construct_dataclass(
+        MyConfig,
         {"db": DBConfig(url="sqlite:///test.db")},
-        Config,
+        config=Config(),
     )
-    assert config.db.url == "sqlite:///test.db"
+    assert my_config.db.url == "sqlite:///test.db"
 
 
 def test_parse_nested_dataclass_from_dict():
@@ -41,11 +43,12 @@ def test_parse_nested_dataclass_from_dict():
         url: str
 
     @dataclass
-    class Config:
+    class MyConfig:
         db: DBConfig
 
-    config = from_dict(
+    my_config = construct_dataclass(
+        MyConfig,
         {"db": {"url": "sqlite:///test.db"}},
-        Config,
+        config=Config(),
     )
-    assert config.db.url == "sqlite:///test.db"
+    assert my_config.db.url == "sqlite:///test.db"

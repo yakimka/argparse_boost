@@ -6,12 +6,11 @@ import pytest
 
 from argparse_boost import (
     BoostedArgumentParser,
+    Config,
     FieldNameConflictError,
     Parser,
+    construct_dataclass,
     dict_from_args,
-    env_for_dataclass,
-    field_path_to_env_name,
-    from_dict,
 )
 
 
@@ -32,12 +31,17 @@ def construct_data(request, parser, env_prefix):
             parser.parse_arguments_from_dataclass(dataclass_type)
             args = parser.parse_args([])
             data = dict_from_args(args, dataclass_type)
-        else:
-            data = env_for_dataclass(
+            flat_data = {"_".join(k): v for k, v in data.items()}
+            return construct_dataclass(
                 dataclass_type,
-                name_maker=field_path_to_env_name(env_prefix=env_prefix),
+                flat_data,
+                config=Config(env_prefix=env_prefix, loaders=[]),
             )
-        return from_dict(data, dataclass_type)
+        else:
+            return construct_dataclass(
+                dataclass_type,
+                config=Config(env_prefix=env_prefix),
+            )
 
     return maker
 
@@ -93,9 +97,6 @@ def test_nested_defaults_preserved_when_overriding_partial(monkeypatch, construc
 
 def test_custom_parser_is_applied_for_env_values(monkeypatch, construct_data):
     def triple(value: str) -> int:
-        # TODO: fix this behaviour
-        if isinstance(value, int):
-            return value
         return int(value) * 3
 
     @dataclass(kw_only=True)
