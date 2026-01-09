@@ -70,9 +70,9 @@ def _parse_float(_: float, raw: str) -> float:
 @parse_atom.register(bool)
 def _parse_bool(_: bool, raw: str) -> bool:
     normalized = raw.strip().lower()
-    if normalized in {"1", "true", "yes", "on"}:
+    if normalized in {"1", "true", "yes", "on", "y"}:
         return True
-    if normalized in {"0", "false", "no", "off"}:
+    if normalized in {"0", "false", "no", "off", "n"}:
         return False
     msg = f"Cannot parse boolean from {raw!r}"
     raise ValueError(msg)

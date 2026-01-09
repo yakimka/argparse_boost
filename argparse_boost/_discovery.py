@@ -288,7 +288,7 @@ def setup_logging(log_level: str = "INFO") -> None:
     level = getattr(logging, log_level.upper(), logging.INFO)
     logging.basicConfig(
         level=level,
-        format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+        format="[%(asctime)s][%(levelname)s][%(name)s] %(message)s",
     )
 
 
